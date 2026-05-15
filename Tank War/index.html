@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đại Chiến Lịch Sử - Teacher Friendly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Excel import (SheetJS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #0f172a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    canvas { display: block; width: 100%; height: calc(100vh - 160px); }
+    .panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.1); }
+    .modal { background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(16px); }
+    input[type=range] { accent-color: #38bdf8; cursor: pointer; }
+    .btn-move { background: rgba(255,255,255,0.1); padding: 6px 16px; border-radius: 6px; font-weight: bold; font-size: 0.875rem; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.2); }
+    .btn-move:hover:not(:disabled) { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+    .btn-move:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .scroll-soft::-webkit-scrollbar { width: 10px; height: 10px; }
+    .scroll-soft::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+    .scroll-soft::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 999px; }
+
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); }
+  </style>
+</head>
+
+<body class="flex flex-col h-screen">
+
+  <!-- SETUP MODAL -->
+  <div id="setup-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto py-8">
+    <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-5xl w-full text-center relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 via-blue-500 to-green-500"></div>
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="text-left">
+          <h1 class="text-4xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 tracking-tight">
+            ĐẠI CHIẾN LỊCH SỬ
+          </h1>
+          <p class="text-slate-400 font-medium">
+            Teacher-friendly: tạo bộ câu hỏi riêng, import Excel, và terrain ngẫu nhiên mỗi trận 🎓⛰️
+          </p>
+        </div>
+
+        <button onclick="openTeacherPanel(true)"
+          class="pill hover:bg-white/15 transition-all">
+          <span class="text-sky-300 font-black">Teacher Panel</span>
+          <span class="text-slate-400 text-sm">(Questions)</span>
+        </button>
+      </div>
+
+      <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
+        <span class="pill">
+          <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Question Set</span>
+          <select id="active-set-select-setup"
+            class="bg-slate-900 text-white rounded-lg border border-slate-700 px-3 py-1.5 outline-none focus:border-sky-400">
+          </select>
+        </span>
+        <span class="pill">
+          <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Terrain</span>
+          <span id="terrain-theme-label" class="text-white font-bold">Random</span>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-8 text-left">
+        <div class="bg-slate-800/50 p-5 rounded-xl border border-red-900/50">
+          <label class="text-red-400 font-bold uppercase tracking-wider text-sm">Đội 1 (Đỏ)</label>
+          <input type="text" id="name-0" value="Hồng Quân"
+            class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 mt-2 focus:border-red-500 focus:outline-none transition-colors">
+          <p class="text-xs text-slate-500 mt-4 mb-2 uppercase font-bold">Chọn Quốc Gia:</p>
+          <select id="chassis-0" class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 focus:border-red-500 focus:outline-none">
+            <option value="VIETNAM">Việt Nam (Nón Lá)</option>
+            <option value="USSR">Liên Xô (Mũ Ushanka)</option>
+            <option value="USA">Hoa Kỳ (Kính râm)</option>
+            <option value="GERMANY">Đức (Mũ thép)</option>
+            <option value="JAPAN">Nhật Bản (Khăn Hachimaki)</option>
+            <option value="FRANCE">Pháp (Mũ Beret)</option>
+          </select>
+        </div>
+
+        <div class="bg-slate-800/50 p-5 rounded-xl border border-blue-900/50">
+          <label class="text-blue-400 font-bold uppercase tracking-wider text-sm">Đội 2 (Xanh Dương)</label>
+          <input type="text" id="name-1" value="Đồng Minh"
+            class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 mt-2 focus:border-blue-500 focus:outline-none transition-colors">
+          <p class="text-xs text-slate-500 mt-4 mb-2 uppercase font-bold">Chọn Quốc Gia:</p>
+          <select id="chassis-1" class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none">
+            <option value="USA">Hoa Kỳ (Kính râm)</option>
+            <option value="VIETNAM">Việt Nam (Nón Lá)</option>
+            <option value="USSR">Liên Xô (Mũ Ushanka)</option>
+            <option value="GERMANY">Đức (Mũ thép)</option>
+            <option value="JAPAN">Nhật Bản (Khăn Hachimaki)</option>
+            <option value="FRANCE">Pháp (Mũ Beret)</option>
+          </select>
+        </div>
+
+        <div class="bg-slate-800/50 p-5 rounded-xl border border-green-900/50">
+          <label class="text-green-400 font-bold uppercase tracking-wider text-sm">Đội 3 (Xanh Lá)</label>
+          <input type="text" id="name-2" value="Trục Sinh Thái"
+            class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 mt-2 focus:border-green-500 focus:outline-none transition-colors">
+          <p class="text-xs text-slate-500 mt-4 mb-2 uppercase font-bold">Chọn Quốc Gia:</p>
+          <select id="chassis-2" class="w-full bg-slate-900 text-white p-3 rounded-lg border border-slate-700 focus:border-green-500 focus:outline-none">
+            <option value="GERMANY">Đức (Mũ thép)</option>
+            <option value="FRANCE">Pháp (Mũ Beret)</option>
+            <option value="VIETNAM">Việt Nam (Nón Lá)</option>
+            <option value="USSR">Liên Xô (Mũ Ushanka)</option>
+            <option value="USA">Hoa Kỳ (Kính râm)</option>
+            <option value="JAPAN">Nhật Bản (Khăn Hachimaki)</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="startGame()"
+        class="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-slate-900 font-black py-4 px-12 rounded-xl text-2xl shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all active:scale-95">
+        XUẤT QUÂN
+      </button>
+    </div>
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="h-16 flex items-center justify-between px-6 bg-slate-900/90 backdrop-blur-md border-b border-slate-700/50 shadow-lg z-10">
+    <div class="flex items-center gap-3">
+      <button onclick="openTeacherPanel(false)" class="pill hover:bg-white/15 transition-all">
+        <span class="text-sky-300 font-black">Teacher Panel</span>
+      </button>
+      <span class="pill">
+        <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Set</span>
+        <span id="active-set-label" class="text-white font-bold">—</span>
+      </span>
+      <span class="pill">
+        <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Terrain</span>
+        <span id="active-terrain-label" class="text-white font-bold">—</span>
+      </span>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div class="flex flex-col items-center bg-slate-800/80 px-6 py-1.5 rounded-lg border border-slate-600/50 shadow-inner">
+        <span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Sức Gió</span>
+        <div class="font-mono text-xl font-bold text-white" id="wind-display">0 💨</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD STRIP -->
+  <div class="h-16 flex items-center justify-between px-6 bg-slate-900/60 backdrop-blur border-b border-slate-700/40 z-10">
+    <div id="team-0-hud" class="flex flex-col items-center p-2 rounded-lg w-48 transition-all text-red-400 border border-transparent">
+      <span id="hud-name-0" class="font-black text-lg truncate w-full text-center tracking-wide">ĐỎ</span>
+      <div class="w-full bg-slate-800 h-2 rounded-full mt-1 overflow-hidden relative">
+        <div id="hp-bar-0" class="bg-red-500 h-full w-full transition-all duration-300"></div>
+      </div>
+      <span class="text-xs font-bold mt-1 text-slate-300">MÁU: <span id="hp-0">50</span> | ĐIỂM: <span id="pts-0" class="text-yellow-400">0</span></span>
+    </div>
+
+    <div id="team-1-hud" class="flex flex-col items-center p-2 rounded-lg w-48 transition-all text-blue-400 border border-transparent">
+      <span id="hud-name-1" class="font-black text-lg truncate w-full text-center tracking-wide">XANH DƯƠNG</span>
+      <div class="w-full bg-slate-800 h-2 rounded-full mt-1 overflow-hidden relative">
+        <div id="hp-bar-1" class="bg-blue-500 h-full w-full transition-all duration-300"></div>
+      </div>
+      <span class="text-xs font-bold mt-1 text-slate-300">MÁU: <span id="hp-1">50</span> | ĐIỂM: <span id="pts-1" class="text-yellow-400">0</span></span>
+    </div>
+
+    <div id="team-2-hud" class="flex flex-col items-center p-2 rounded-lg w-48 transition-all text-green-400 border border-transparent">
+      <span id="hud-name-2" class="font-black text-lg truncate w-full text-center tracking-wide">XANH LÁ</span>
+      <div class="w-full bg-slate-800 h-2 rounded-full mt-1 overflow-hidden relative">
+        <div id="hp-bar-2" class="bg-green-500 h-full w-full transition-all duration-300"></div>
+      </div>
+      <span class="text-xs font-bold mt-1 text-slate-300">MÁU: <span id="hp-2">50</span> | ĐIỂM: <span id="pts-2" class="text-yellow-400">0</span></span>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- CONTROLS -->
+  <div id="controls" class="panel h-24 flex items-center justify-center gap-6 px-6 opacity-50 pointer-events-none transition-opacity relative z-10">
+    <div class="flex flex-col items-center justify-center border-r border-slate-600/50 pr-6 mr-2">
+      <span class="text-[10px] font-black text-slate-400 mb-1.5 tracking-widest">DI CHUYỂN: <span id="moves-val" class="text-white">1</span></span>
+      <div class="flex gap-2">
+        <button id="btn-move-left" class="btn-move flex items-center gap-1" onclick="moveTank(-1)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Trái
+        </button>
+        <button id="btn-move-right" class="btn-move flex items-center gap-1" onclick="moveTank(1)">
+          Phải <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col w-48">
+      <label class="text-xs font-bold mb-1 flex justify-between text-slate-300 tracking-wider uppercase">
+        <span>Góc Bắn</span> <span id="angle-val" class="text-white">45°</span>
+      </label>
+      <input type="range" id="angle-slider" min="0" max="180" value="45" class="w-full h-2 bg-slate-700 rounded-lg appearance-none">
+    </div>
+
+    <div class="flex flex-col w-48">
+      <label class="text-xs font-bold mb-1 flex justify-between text-slate-300 tracking-wider uppercase">
+        <span>Lực Bắn</span> <span id="power-val" class="text-white">50</span>
+      </label>
+      <input type="range" id="power-slider" min="0" max="100" value="50" class="w-full h-2 bg-slate-700 rounded-lg appearance-none">
+    </div>
+
+    <div class="flex flex-col w-56">
+      <label class="text-xs font-bold mb-1 text-slate-300 tracking-wider uppercase">Đạn Dược</label>
+      <select id="ammo-select" class="w-full bg-slate-800 text-white border border-slate-600 rounded-lg p-1.5 font-semibold outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 transition-all">
+        <option value="BASIC">Đạn Tiêu Chuẩn</option>
+      </select>
+    </div>
+
+    <button id="fire-btn" class="bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 text-white font-black py-3 px-10 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.5)] transform active:scale-95 transition-all text-2xl ml-4 border-t border-red-400 tracking-widest">
+      KHAI HOẢ
+    </button>
+  </div>
+
+  <!-- QUESTION MODAL -->
+  <div id="question-modal" class="modal fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-4xl w-full text-center relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-sky-500"></div>
+      <h2 id="turn-title" class="text-4xl font-black mb-1 tracking-tight">Tới Lượt</h2>
+      <div class="flex items-center justify-center gap-3 mb-6 flex-wrap">
+        <span class="pill">
+          <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Set</span>
+          <span id="question-set-name" class="text-white font-bold">—</span>
+        </span>
+        <span class="pill">
+          <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Chủ đề</span>
+          <span id="question-category" class="text-sky-300 font-black">—</span>
+        </span>
+      </div>
+
+      <div id="mcq-container">
+        <p id="mcq-question" class="text-2xl font-semibold mb-8 text-white leading-relaxed">Nội dung câu hỏi?</p>
+        <div id="mcq-options" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left"></div>
+      </div>
+
+      <div id="loot-result" class="hidden flex flex-col items-center mt-4">
+        <p id="loot-text" class="text-3xl font-black mb-8 leading-tight"></p>
+        <button onclick="startAiming()"
+          class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-4 px-12 rounded-xl text-xl shadow-[0_0_20px_rgba(2,132,199,0.5)] transition-transform active:scale-95 w-full">
+          BẮT ĐẦU NGẮM BẮN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER MODAL -->
+  <div id="game-over-modal" class="modal fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-700 p-10 rounded-2xl shadow-2xl text-center relative overflow-hidden max-w-5xl w-full mx-6">
+      <div class="absolute top-0 left-0 w-full h-2 bg-yellow-400"></div>
+      <h2 class="text-5xl md:text-6xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 tracking-tighter">
+        CHIẾN THẮNG
+      </h2>
+      <p id="winner-text" class="text-2xl md:text-3xl mb-6 font-bold text-white"></p>
+
+      <div class="mt-2 mb-6 flex justify-center">
+        <video id="ending-video" class="w-full max-w-3xl rounded-xl shadow-2xl hidden" controls>
+          <source src="ending.mp4" type="video/mp4">
+          Trình duyệt của bạn không hỗ trợ video.
+        </video>
+      </div>
+
+      <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-6 text-left max-h-[38vh] overflow-auto scroll-soft">
+        <h3 class="text-xl font-black tracking-wide text-slate-100 mb-4">BẢNG TỔNG KẾT</h3>
+        <div id="scoreboard" class="space-y-3"></div>
+        <div class="mt-4 pt-4 border-t border-slate-700">
+          <h4 class="text-lg font-black text-slate-100 mb-2">TIẾN TRÌNH (XP / RANK)</h4>
+          <div id="progressboard" class="space-y-2"></div>
+          <p class="text-xs text-slate-400 mt-3">XP được lưu trên máy (localStorage) để dùng cho các trận sau.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center gap-4 flex-wrap">
+        <button onclick="location.reload()"
+          class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-10 rounded-xl text-lg transition-all border border-slate-500 hover:border-slate-400">
+          Tạo Trận Chiến Mới
+        </button>
+        <button onclick="resetProgress()"
+          class="bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold py-4 px-10 rounded-xl text-lg transition-all border border-slate-600 hover:border-slate-500">
+          Reset XP
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHER PANEL -->
+  <div id="teacher-modal" class="modal fixed inset-0 z-[70] hidden items-center justify-center overflow-y-auto py-8">
+    <div class="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"></div>
+
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-black text-white">Teacher Panel</h2>
+          <p class="text-slate-400 mt-1">
+            Tạo bộ câu hỏi → lưu lại → chọn set để chơi. Import Excel/CSV theo format chuẩn.
+          </p>
+        </div>
+        <button onclick="closeTeacherPanel()" class="pill hover:bg-white/15 transition-all">
+          <span class="text-slate-200 font-bold">Đóng</span>
+          <span class="text-slate-400">✖</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <!-- Left: sets -->
+        <div class="bg-slate-800/40 border border-slate-700 rounded-2xl p-5">
+          <h3 class="text-lg font-black text-white mb-3">Question Sets</h3>
+
+          <label class="text-xs uppercase tracking-widest font-bold text-slate-400">Chọn Set</label>
+          <select id="active-set-select"
+            class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400">
+          </select>
+
+          <div class="mt-4 flex gap-2">
+            <input id="new-set-name" placeholder="Tên set mới (vd: Địa lý 7A)"
+              class="flex-1 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400" />
+            <button onclick="createSet()"
+              class="bg-sky-600 hover:bg-sky-500 text-white font-black px-4 rounded-xl">
+              Tạo
+            </button>
+          </div>
+
+          <div class="mt-3 flex gap-2">
+            <button onclick="duplicateSet()"
+              class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-3 rounded-xl border border-slate-600">
+              Duplicate
+            </button>
+            <button onclick="deleteSet()"
+              class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-3 rounded-xl">
+              Xoá Set
+            </button>
+          </div>
+
+          <div class="mt-6 p-4 rounded-2xl border border-slate-700 bg-slate-900/40">
+            <h4 class="font-black text-white mb-2">Excel/CSV Format</h4>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Header cần có (không phân biệt hoa thường):<br>
+              <span class="text-white font-semibold">q, a, b, c, d, ans</span>
+              <br><br>
+              <span class="text-slate-300 font-semibold">ans</span> có thể là:
+              <span class="text-white font-semibold">A/B/C/D</span> hoặc <span class="text-white font-semibold">0/1/2/3</span>.
+              <br><br>
+              Optional: <span class="text-white font-semibold">category</span>
+            </p>
+
+            <div class="mt-4 flex gap-2">
+              <button onclick="downloadTemplateCSV()"
+                class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-3 rounded-xl border border-slate-600">
+                Tải Template CSV
+              </button>
+              <button onclick="downloadTemplateXLSX()"
+                class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-3 rounded-xl border border-slate-600">
+                Tải Template XLSX
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="text-xs uppercase tracking-widest font-bold text-slate-400">Import file (.xlsx / .csv)</label>
+            <input id="import-file" type="file" accept=".xlsx,.xls,.csv"
+              class="w-full mt-2 block text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-slate-700 file:text-white file:font-bold hover:file:bg-slate-600">
+            <button onclick="importQuestions()"
+              class="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-3 rounded-xl">
+              Import vào Set đang chọn
+            </button>
+          </div>
+        </div>
+
+        <!-- Middle: add question -->
+        <div class="bg-slate-800/40 border border-slate-700 rounded-2xl p-5">
+          <h3 class="text-lg font-black text-white mb-3">Add / Edit Question</h3>
+
+          <label class="text-xs uppercase tracking-widest font-bold text-slate-400">Câu hỏi (q)</label>
+          <textarea id="q-text" rows="3"
+            class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+            placeholder="Nhập nội dung câu hỏi..."></textarea>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">A</label>
+              <input id="opt-a"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+                placeholder="Đáp án A" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">B</label>
+              <input id="opt-b"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+                placeholder="Đáp án B" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">C</label>
+              <input id="opt-c"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+                placeholder="Đáp án C" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">D</label>
+              <input id="opt-d"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+                placeholder="Đáp án D" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">Đáp án đúng (ans)</label>
+              <select id="ans-select"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400">
+                <option value="0">A</option>
+                <option value="1">B</option>
+                <option value="2">C</option>
+                <option value="3">D</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-widest font-bold text-slate-400">Category (optional)</label>
+              <input id="cat-text"
+                class="w-full mt-2 bg-slate-900 text-white rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-sky-400"
+                placeholder="vd: Lịch sử / Địa lý / Unit 5..." />
+            </div>
+          </div>
+
+          <div class="mt-4 flex gap-2">
+            <button onclick="saveQuestion()"
+              class="flex-1 bg-sky-600 hover:bg-sky-500 text-white font-black px-4 py-3 rounded-xl">
+              Lưu câu hỏi
+            </button>
+            <button onclick="clearQuestionForm()"
+              class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-3 rounded-xl border border-slate-600">
+              Clear
+            </button>
+          </div>
+
+          <div class="mt-4 p-4 rounded-2xl border border-slate-700 bg-slate-900/40">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="text-slate-200 font-bold">Tips nhanh</div>
+              <div class="text-slate-400 text-sm">Chọn 1 câu trong bảng để edit</div>
+            </div>
+            <ul class="text-slate-400 text-sm mt-2 space-y-1">
+              <li>• Import Excel xong, câu hỏi sẽ tự hiện ở bảng bên phải.</li>
+              <li>• Nếu set hết câu hỏi, game sẽ tự shuffle lại set đó.</li>
+              <li>• Mọi thứ lưu trong trình duyệt (không cần đăng nhập).</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Right: list questions -->
+        <div class="bg-slate-800/40 border border-slate-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <h3 class="text-lg font-black text-white">Questions in Set</h3>
+            <span class="pill">
+              <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Count</span>
+              <span id="q-count" class="text-white font-black">0</span>
+            </span>
+          </div>
+
+          <div class="mt-4 max-h-[60vh] overflow-auto scroll-soft rounded-2xl border border-slate-700">
+            <table class="w-full text-left text-sm">
+              <thead class="sticky top-0 bg-slate-900">
+                <tr class="text-slate-300">
+                  <th class="p-3 border-b border-slate-700">#</th>
+                  <th class="p-3 border-b border-slate-700">Question</th>
+                  <th class="p-3 border-b border-slate-700">Ans</th>
+                  <th class="p-3 border-b border-slate-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="q-table" class="text-slate-200"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 flex gap-2">
+            <button onclick="shuffleSetQuestions()"
+              class="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-black px-4 py-3 rounded-xl">
+              Shuffle Set
+            </button>
+            <button onclick="clearSetQuestions()"
+              class="flex-1 bg-red-600 hover:bg-red-500 text-white font-black px-4 py-3 rounded-xl">
+              Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 text-slate-400 text-sm">
+        <span class="text-slate-200 font-bold">Lưu ý:</span>
+        Nếu đang chơi, đổi set trong Teacher Panel sẽ áp dụng cho các lượt hỏi tiếp theo.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /***********************
+     *  TEACHER DATA LAYER
+     ***********************/
+    const QUESTION_SETS_KEY = "dclh_question_sets_v1";
+    const ACTIVE_SET_KEY = "dclh_active_set_v1";
+
+    // Default set (fallback) — you can delete later
+    const DEFAULT_SET = {
+      id: "default",
+      name: "GEO & HISTORY (Default)",
+      questions: [
+        { q: "Dãy núi dài nhất thế giới ở Nam Mỹ là?", a:"Himalaya", b:"Rocky", c:"Andes", d:"Alps", ans:2, category:"Địa lý" },
+        { q: "Văn minh Inca phát triển rực rỡ nhất ở khu vực nào?", a:"Amazon", b:"Dọc dãy Andes", c:"Trung Mỹ", d:"Patagonia", ans:1, category:"Lịch sử" },
+        { q: "Rừng Amazon nổi bật vì?", a:"Khí hậu khô hạn", b:"Nóng ẩm mưa nhiều, đa dạng sinh học", c:"Ôn đới lá kim", d:"Băng tuyết quanh năm", ans:1, category:"Địa lý" },
+        { q: "Dòng biển làm ven tây Nam Mỹ khô hạn?", a:"Gulf Stream", b:"Dòng biển lạnh Peru", c:"Dòng biển nóng Brazil", d:"California", ans:1, category:"Địa lý" },
+      ]
+    };
+
+    let TEACHER = {
+      sets: [],
+      activeSetId: "default",
+      editingIndex: null
+    };
+
+    function loadTeacherData() {
+      try {
+        const raw = localStorage.getItem(QUESTION_SETS_KEY);
+        const sets = raw ? JSON.parse(raw) : null;
+        TEACHER.sets = Array.isArray(sets) && sets.length ? sets : [DEFAULT_SET];
+      } catch {
+        TEACHER.sets = [DEFAULT_SET];
+      }
+      try {
+        const a = localStorage.getItem(ACTIVE_SET_KEY);
+        if (a) TEACHER.activeSetId = a;
+      } catch {}
+      // ensure active exists
+      if (!TEACHER.sets.some(s => s.id === TEACHER.activeSetId)) {
+        TEACHER.activeSetId = TEACHER.sets[0].id;
+      }
+    }
+
+    function saveTeacherData() {
+      try { localStorage.setItem(QUESTION_SETS_KEY, JSON.stringify(TEACHER.sets)); } catch {}
+      try { localStorage.setItem(ACTIVE_SET_KEY, TEACHER.activeSetId); } catch {}
+    }
+
+    function getActiveSet() {
+      return TEACHER.sets.find(s => s.id === TEACHER.activeSetId) || TEACHER.sets[0] || DEFAULT_SET;
+    }
+
+    function setActiveSet(id) {
+      TEACHER.activeSetId = id;
+      saveTeacherData();
+      syncActiveSetLabels();
+      refreshTeacherUI();
+      // reset available questions pool for game:
+      rebuildAvailableQuestions();
+    }
+
+    function syncSetDropdowns() {
+      const selects = [document.getElementById("active-set-select"), document.getElementById("active-set-select-setup")].filter(Boolean);
+      selects.forEach(sel => {
+        sel.innerHTML = "";
+        TEACHER.sets.forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = s.name;
+          sel.appendChild(opt);
+        });
+        sel.value = TEACHER.activeSetId;
+      });
+    }
+
+    function syncActiveSetLabels() {
+      const s = getActiveSet();
+      const label = document.getElementById("active-set-label");
+      const qLabel = document.getElementById("question-set-name");
+      if (label) label.textContent = s?.name || "—";
+      if (qLabel) qLabel.textContent = s?.name || "—";
+    }
+
+    function openTeacherPanel(fromSetup) {
+      const m = document.getElementById("teacher-modal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+      refreshTeacherUI();
+      // also keep setup select synced
+      syncSetDropdowns();
+      syncActiveSetLabels();
+    }
+    function closeTeacherPanel() {
+      const m = document.getElementById("teacher-modal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+    }
+
+    function createSet() {
+      const name = (document.getElementById("new-set-name").value || "").trim();
+      if (!name) return;
+      const id = "set_" + Date.now();
+      TEACHER.sets.push({ id, name, questions: [] });
+      document.getElementById("new-set-name").value = "";
+      setActiveSet(id);
+    }
+
+    function duplicateSet() {
+      const s = getActiveSet();
+      const id = "set_" + Date.now();
+      const copy = JSON.parse(JSON.stringify(s));
+      copy.id = id;
+      copy.name = s.name + " (Copy)";
+      TEACHER.sets.push(copy);
+      setActiveSet(id);
+    }
+
+    function deleteSet() {
+      if (TEACHER.sets.length <= 1) return;
+      const id = TEACHER.activeSetId;
+      TEACHER.sets = TEACHER.sets.filter(s => s.id !== id);
+      TEACHER.activeSetId = TEACHER.sets[0].id;
+      saveTeacherData();
+      refreshTeacherUI();
+      syncSetDropdowns();
+      syncActiveSetLabels();
+      rebuildAvailableQuestions();
+    }
+
+    function clearSetQuestions() {
+      const s = getActiveSet();
+      s.questions = [];
+      saveTeacherData();
+      refreshTeacherUI();
+      rebuildAvailableQuestions();
+    }
+
+    function shuffleSetQuestions() {
+      const s = getActiveSet();
+      for (let i = s.questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [s.questions[i], s.questions[j]] = [s.questions[j], s.questions[i]];
+      }
+      saveTeacherData();
+      refreshTeacherUI();
+      rebuildAvailableQuestions();
+    }
+
+    function clearQuestionForm() {
+      TEACHER.editingIndex = null;
+      document.getElementById("q-text").value = "";
+      document.getElementById("opt-a").value = "";
+      document.getElementById("opt-b").value = "";
+      document.getElementById("opt-c").value = "";
+      document.getElementById("opt-d").value = "";
+      document.getElementById("ans-select").value = "0";
+      document.getElementById("cat-text").value = "";
+    }
+
+    function saveQuestion() {
+      const s = getActiveSet();
+      const q = (document.getElementById("q-text").value || "").trim();
+      const a = (document.getElementById("opt-a").value || "").trim();
+      const b = (document.getElementById("opt-b").value || "").trim();
+      const c = (document.getElementById("opt-c").value || "").trim();
+      const d = (document.getElementById("opt-d").value || "").trim();
+      const ans = parseInt(document.getElementById("ans-select").value, 10);
+      const category = (document.getElementById("cat-text").value || "").trim();
+
+      if (!q || !a || !b || !c || !d || !(ans >= 0 && ans <= 3)) return;
+
+      const item = { q, a, b, c, d, ans, category: category || "General" };
+
+      if (TEACHER.editingIndex !== null && s.questions[TEACHER.editingIndex]) {
+        s.questions[TEACHER.editingIndex] = item;
+      } else {
+        s.questions.push(item);
+      }
+
+      saveTeacherData();
+      clearQuestionForm();
+      refreshTeacherUI();
+      rebuildAvailableQuestions();
+    }
+
+    function editQuestion(index) {
+      const s = getActiveSet();
+      const item = s.questions[index];
+      if (!item) return;
+      TEACHER.editingIndex = index;
+      document.getElementById("q-text").value = item.q || "";
+      document.getElementById("opt-a").value = item.a || "";
+      document.getElementById("opt-b").value = item.b || "";
+      document.getElementById("opt-c").value = item.c || "";
+      document.getElementById("opt-d").value = item.d || "";
+      document.getElementById("ans-select").value = String(item.ans ?? 0);
+      document.getElementById("cat-text").value = item.category || "";
+    }
+
+    function deleteQuestion(index) {
+      const s = getActiveSet();
+      s.questions.splice(index, 1);
+      saveTeacherData();
+      refreshTeacherUI();
+      rebuildAvailableQuestions();
+    }
+
+    function refreshTeacherUI() {
+      syncSetDropdowns();
+      syncActiveSetLabels();
+
+      const s = getActiveSet();
+      const table = document.getElementById("q-table");
+      const count = document.getElementById("q-count");
+      count.textContent = String(s.questions.length);
+
+      table.innerHTML = "";
+      s.questions.forEach((item, idx) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-white/5";
+
+        const ansLetter = ["A","B","C","D"][item.ans] || "?";
+
+        tr.innerHTML = `
+          <td class="p-3 border-b border-slate-800 align-top text-slate-400">${idx+1}</td>
+          <td class="p-3 border-b border-slate-800 align-top">
+            <div class="font-semibold text-white line-clamp-2">${escapeHtml(item.q)}</div>
+            <div class="text-xs text-slate-400 mt-1">${escapeHtml(item.category || "General")}</div>
+          </td>
+          <td class="p-3 border-b border-slate-800 align-top font-black text-yellow-300">${ansLetter}</td>
+          <td class="p-3 border-b border-slate-800 align-top">
+            <div class="flex gap-2 flex-wrap">
+              <button class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-3 py-1.5 rounded-lg border border-slate-600"
+                onclick="editQuestion(${idx})">Edit</button>
+              <button class="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded-lg"
+                onclick="deleteQuestion(${idx})">Delete</button>
+            </div>
+          </td>
+        `;
+        table.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+      }[s]));
+    }
+
+    function normalizeHeader(h) {
+      return String(h || "").trim().toLowerCase();
+    }
+
+    function parseAns(value) {
+      const v = String(value ?? "").trim().toUpperCase();
+      if (v === "A") return 0;
+      if (v === "B") return 1;
+      if (v === "C") return 2;
+      if (v === "D") return 3;
+      const n = parseInt(v, 10);
+      if (!Number.isNaN(n) && n >= 0 && n <= 3) return n;
+      return null;
+    }
+
+    async function importQuestions() {
+      const input = document.getElementById("import-file");
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const s = getActiveSet();
+
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      try {
+        if (ext === "csv") {
+          const text = await file.text();
+          const rows = csvToRows(text);
+          const imported = rowsToQuestions(rows);
+          s.questions.push(...imported);
+        } else {
+          const data = await file.arrayBuffer();
+          const wb = XLSX.read(data, { type: "array" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+          const imported = rowsToQuestions(json);
+          s.questions.push(...imported);
+        }
+
+        saveTeacherData();
+        refreshTeacherUI();
+        rebuildAvailableQuestions();
+        input.value = "";
+      } catch (e) {
+        console.error(e);
+        alert("Import lỗi. Hãy kiểm tra format: q, a, b, c, d, ans (optional category).");
+      }
+    }
+
+    function csvToRows(text) {
+      // Simple CSV parser good enough for teacher templates (no crazy quoted commas needed).
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+      return lines.map(line => line.split(",").map(x => x.trim()));
+    }
+
+    function rowsToQuestions(rows) {
+      if (!rows || rows.length < 2) return [];
+      const header = rows[0].map(normalizeHeader);
+
+      const idxQ = header.indexOf("q");
+      const idxA = header.indexOf("a");
+      const idxB = header.indexOf("b");
+      const idxC = header.indexOf("c");
+      const idxD = header.indexOf("d");
+      const idxAns = header.indexOf("ans");
+      const idxCat = header.indexOf("category");
+
+      if (idxQ < 0 || idxA < 0 || idxB < 0 || idxC < 0 || idxD < 0 || idxAns < 0) {
+        throw new Error("Missing required columns");
+      }
+
+      const out = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i] || [];
+        const q = String(r[idxQ] ?? "").trim();
+        const a = String(r[idxA] ?? "").trim();
+        const b = String(r[idxB] ?? "").trim();
+        const c = String(r[idxC] ?? "").trim();
+        const d = String(r[idxD] ?? "").trim();
+        const ans = parseAns(r[idxAns]);
+        const category = idxCat >= 0 ? String(r[idxCat] ?? "").trim() : "";
+
+        if (!q || !a || !b || !c || !d || ans === null) continue;
+        out.push({ q, a, b, c, d, ans, category: category || "General" });
+      }
+      return out;
+    }
+
+    function downloadTemplateCSV() {
+      const csv = [
+        "q,a,b,c,d,ans,category",
+        "Thủ đô Việt Nam là gì?,Hà Nội,TP.HCM,Đà Nẵng,Cần Thơ,A,Địa lý",
+        "Năm 1945 gắn với sự kiện gì ở Việt Nam?,CMT8,Điện Biên Phủ,Đổi mới,Thành lập ASEAN,A,Lịch sử"
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "questions_template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadTemplateXLSX() {
+      const rows = [
+        ["q","a","b","c","d","ans","category"],
+        ["Thủ đô Việt Nam là gì?","Hà Nội","TP.HCM","Đà Nẵng","Cần Thơ","A","Địa lý"],
+        ["Năm 1945 gắn với sự kiện gì ở Việt Nam?","CMT8","Điện Biên Phủ","Đổi mới","Thành lập ASEAN","A","Lịch sử"]
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Questions");
+      XLSX.writeFile(wb, "questions_template.xlsx");
+    }
+
+    /***********************
+     *  GAME: CONFIG & STATE
+     ***********************/
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    // Optional BGM
+    const BGM = new Audio("bgm.mp3");
+    BGM.loop = true;
+    BGM.volume = 0.35;
+    let bgmReady = true;
+    BGM.addEventListener("error", () => { bgmReady = false; });
+
+    // Progress storage
+    const PROGRESS_KEY = "dclh_countryballs_progress_v1";
+    const RANKS = [
+      { name: "Tân Binh", min: 0 },
+      { name: "Hạ Sĩ", min: 80 },
+      { name: "Trung Sĩ", min: 180 },
+      { name: "Thượng Sĩ", min: 320 },
+      { name: "Đại Úy", min: 520 },
+      { name: "Thiếu Tá", min: 780 },
+      { name: "Đại Tá", min: 1100 },
+      { name: "Tướng", min: 1500 },
+      { name: "Thống Soái", min: 2000 }
+    ];
+    function loadProgress(){ try{ const raw=localStorage.getItem(PROGRESS_KEY); return raw?JSON.parse(raw):{} }catch{return{}} }
+    function saveProgress(p){ try{ localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }catch{} }
+    function resetProgress(){
+      try{ localStorage.removeItem(PROGRESS_KEY); }catch{}
+      const pb = document.getElementById("progressboard");
+      if(pb) pb.innerHTML = `<div class="text-slate-300 font-semibold">Đã reset XP ✅</div>`;
+    }
+    function getRank(xp){
+      let r=RANKS[0].name;
+      for(const it of RANKS){ if(xp>=it.min) r=it.name; }
+      return r;
+    }
+
+    const CHASSIS_TYPES = {
+      VIETNAM: { flag: 'VN', scale: 1.0 },
+      USA:     { flag: 'US', scale: 1.0 },
+      USSR:    { flag: 'SU', scale: 1.0 },
+      GERMANY: { flag: 'GER', scale: 1.0 },
+      JAPAN:   { flag: 'JP', scale: 1.0 },
+      FRANCE:  { flag: 'FR', scale: 1.0 }
+    };
+
+    const AMMO_TYPES = {
+      BASIC:     { id:'BASIC', name:'Đạn Tiêu Chuẩn', color:'#cbd5e1', mass:1, radius:4, expRadius:55, damage:25 },
+      HEAVY:     { id:'HEAVY', name:'Đạn Xuyên Giáp', color:'#334155', mass:1.8, radius:7, expRadius:90, damage:45 },
+      SNIPER:    { id:'SNIPER', name:'Đạn Tốc Độ Cao', color:'#fef08a', mass:0.5, radius:3, expRadius:35, damage:50 },
+      CLUSTER:   { id:'CLUSTER', name:'Đạn Chùm', color:'#fdba74', mass:1, radius:6, expRadius:45, damage:20, isCluster:true },
+      KNOWLEDGE: { id:'KNOWLEDGE', name:'Tên Lửa Tri Thức', color:'#a855f7', mass:1, radius:5, expRadius:80, damage:40, guided:true }
+    };
+
+    const MAX_HP = 50;
+
+    const STATE = {
+      terrain: [],
+      terrainTheme: null,
+      teams: [
+        { id:0, name:'', color:'#ef4444', hp:MAX_HP, pts:0, x:0, targetX:0, y:0, angle:45, power:50, inventory:['BASIC'], moves:1, chassisKey:'VIETNAM', streak:0,
+          stats:{ correct:0, wrong:0, shots:0, hits:0, damageDealt:0, damageTaken:0, kills:0 } },
+        { id:1, name:'', color:'#3b82f6', hp:MAX_HP, pts:0, x:0, targetX:0, y:0, angle:90, power:50, inventory:['BASIC'], moves:1, chassisKey:'USA', streak:0,
+          stats:{ correct:0, wrong:0, shots:0, hits:0, damageDealt:0, damageTaken:0, kills:0 } },
+        { id:2, name:'', color:'#22c55e', hp:MAX_HP, pts:0, x:0, targetX:0, y:0, angle:135, power:50, inventory:['BASIC'], moves:1, chassisKey:'GERMANY', streak:0,
+          stats:{ correct:0, wrong:0, shots:0, hits:0, damageDealt:0, damageTaken:0, kills:0 } },
+      ],
+      currentTurn: 0,
+      phase: 'SETUP',
+      wind: 0,
+      projectiles: [],
+      particles: [],
+      confetti: [],
+      gravity: 0.12,          // keep physics vibe
+      lastTime: 0,
+
+      // cinematic
+      timeScale: 1,
+      slowmoTimer: 0,
+      shakeTime: 0,
+      shakeMag: 0
+    };
+
+    /***********************
+     *  QUESTIONS: GAME POOL
+     ***********************/
+    let availableQuestions = [];
+    function rebuildAvailableQuestions() {
+      const s = getActiveSet();
+      // Map teacher schema -> game schema
+      availableQuestions = (s.questions || []).map(it => ({
+        q: it.q,
+        opts: [it.a, it.b, it.c, it.d],
+        ans: it.ans,
+        category: it.category || "General"
+      }));
+      // fallback: if empty, use default
+      if (!availableQuestions.length) {
+        availableQuestions = DEFAULT_SET.questions.map(it => ({
+          q: it.q, opts:[it.a,it.b,it.c,it.d], ans:it.ans, category: it.category || "General"
+        }));
+      }
+      syncActiveSetLabels();
+    }
+
+    /***********************
+     *  TERRAIN RANDOMIZATION
+     ***********************/
+    const TERRAIN_THEMES = [
+      { name:"Forest", skyTop:"#0ea5e9", skyBottom:"#0f172a", ground:"#14532d", ridge:"#052e16", snow:false },
+      { name:"Desert", skyTop:"#38bdf8", skyBottom:"#0f172a", ground:"#a16207", ridge:"#713f12", snow:false },
+      { name:"Snow",   skyTop:"#93c5fd", skyBottom:"#0f172a", ground:"#64748b", ridge:"#334155", snow:true },
+      { name:"Sunset", skyTop:"#fb7185", skyBottom:"#0f172a", ground:"#3f3f46", ridge:"#18181b", snow:false },
+    ];
+
+    function pickTerrainTheme() {
+      const t = TERRAIN_THEMES[Math.floor(Math.random()*TERRAIN_THEMES.length)];
+      STATE.terrainTheme = t;
+      const labelSetup = document.getElementById("terrain-theme-label");
+      const label = document.getElementById("active-terrain-label");
+      if (labelSetup) labelSetup.textContent = t.name;
+      if (label) label.textContent = t.name;
+    }
+
+    function generateRandomTerrain() {
+      STATE.terrain = new Array(width);
+      const base = height * (0.78 + Math.random()*0.10); // 0.78–0.88
+      const peaks = 3 + Math.floor(Math.random()*4);     // 3–6 peaks
+      const peakList = [];
+
+      for (let i=0;i<peaks;i++){
+        peakList.push({
+          x: Math.random()*width,
+          h: height * (0.20 + Math.random()*0.45),
+          w: width * (0.06 + Math.random()*0.18)
+        });
+      }
+
+      // “mountain-y” noise: sum of gaussians + multi-sine
+      for (let x=0;x<width;x++){
+        let y = base;
+        for (const p of peakList) {
+          const dx = (x - p.x);
+          y -= p.h * Math.exp(-(dx*dx)/(2*p.w*p.w));
+        }
+        y += Math.sin(x*0.012 + Math.random()*6)*6;
+        y += Math.sin(x*0.03  + Math.random()*6)*2;
+        y += Math.sin(x*0.07  + Math.random()*6)*1.5;
+        // clamp
+        y = Math.max(height*0.20, Math.min(height*0.98, y));
+        STATE.terrain[x] = y;
+      }
+    }
+
+    function drawBackground() {
+      const t = STATE.terrainTheme || TERRAIN_THEMES[0];
+
+      // sky gradient
+      const g = ctx.createLinearGradient(0,0,0,height);
+      g.addColorStop(0, t.skyTop);
+      g.addColorStop(1, t.skyBottom);
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,width,height);
+
+      // distant mountains silhouette
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.moveTo(0, height*0.75);
+      for (let x=0; x<=width; x+=18){
+        const y = height*0.62 + Math.sin(x*0.01)*30 + Math.sin(x*0.035)*12;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(width, height);
+      ctx.lineTo(0, height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawTerrain() {
+      const t = STATE.terrainTheme || TERRAIN_THEMES[0];
+
+      // terrain fill
+      ctx.beginPath();
+      ctx.moveTo(0, height);
+      ctx.lineTo(0, STATE.terrain[0]);
+      for (let x=1; x<width; x++){
+        ctx.lineTo(x, STATE.terrain[x]);
+      }
+      ctx.lineTo(width, height);
+      ctx.closePath();
+      ctx.fillStyle = t.ground;
+      ctx.fill();
+
+      // ridge highlight
+      ctx.strokeStyle = t.ridge;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, STATE.terrain[0]);
+      for (let x=1; x<width; x++){
+        ctx.lineTo(x, STATE.terrain[x]);
+      }
+      ctx.stroke();
+
+      // snow caps (optional)
+      if (t.snow) {
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, STATE.terrain[0] - 6);
+        for (let x=1; x<width; x++){
+          const y = STATE.terrain[x] - (Math.max(0, (height*0.55 - STATE.terrain[x]))*0.08);
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    /***********************
+     *  INIT / UI
+     ***********************/
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - 160;
+      width = canvas.width;
+      height = canvas.height;
+    }
+
+    function startGame() {
+      // read active set from setup select
+      const setupSel = document.getElementById("active-set-select-setup");
+      if (setupSel && setupSel.value) setActiveSet(setupSel.value);
+
+      STATE.teams[0].name = (document.getElementById('name-0').value || "").toUpperCase() || "HỒNG QUÂN";
+      STATE.teams[1].name = (document.getElementById('name-1').value || "").toUpperCase() || "ĐỒNG MINH";
+      STATE.teams[2].name = (document.getElementById('name-2').value || "").toUpperCase() || "TRỤC SINH THÁI";
+
+      STATE.teams[0].chassisKey = document.getElementById('chassis-0').value;
+      STATE.teams[1].chassisKey = document.getElementById('chassis-1').value;
+      STATE.teams[2].chassisKey = document.getElementById('chassis-2').value;
+
+      document.getElementById('hud-name-0').innerText = STATE.teams[0].name;
+      document.getElementById('hud-name-1').innerText = STATE.teams[1].name;
+      document.getElementById('hud-name-2').innerText = STATE.teams[2].name;
+
+      document.getElementById('setup-modal').classList.add('hidden');
+
+      if (bgmReady) {
+        const p = BGM.play();
+        if (p && typeof p.catch === "function") p.catch(()=>{});
+      }
+
+      initEngine();
+    }
+
+    function initEngine() {
+      resize();
+      window.addEventListener('resize', () => {
+        resize();
+        // regenerate terrain on resize for clean scaling
+        pickTerrainTheme();
+        generateRandomTerrain();
+        updateTankY();
+      });
+
+      pickTerrainTheme();
+      generateRandomTerrain();
+
+      const spawnPoints = [Math.floor(width * 0.15), Math.floor(width * 0.50), Math.floor(width * 0.85)];
+      STATE.teams.forEach((t, i) => { t.x = spawnPoints[i]; t.targetX = spawnPoints[i]; });
+      updateTankY();
+
+      updateWind();
+      setupInputs();
+      updateHUD();
+      rebuildAvailableQuestions();
+
+      STATE.lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+      showMCQModal();
+    }
+
+    function updateTankY() {
+      STATE.teams.forEach(t => {
+        if (t.hp > 0) {
+          if (t.x < 30) { t.x = 30; t.targetX = 30; }
+          if (t.x > width - 30) { t.x = width - 30; t.targetX = width - 30; }
+          t.y = STATE.terrain[Math.floor(t.x)] || height*0.8;
+        }
+      });
+    }
+
+    function updateWind() {
+      STATE.wind = (Math.random() * 0.12) - 0.06;
+      const dir = STATE.wind > 0 ? '▶' : '◀';
+      const str = Math.abs(Math.round(STATE.wind * 100));
+      document.getElementById('wind-display').innerText = str === 0 ? "YÊN TĨNH" : `${str} ${dir}`;
+      const display = document.getElementById('wind-display');
+      if (str > 8) display.className = "font-mono text-xl font-black text-red-400";
+      else if (str > 4) display.className = "font-mono text-xl font-bold text-yellow-400";
+      else display.className = "font-mono text-xl font-bold text-sky-300";
+    }
+
+    function setupInputs() {
+      const angleSlider = document.getElementById("angle-slider");
+      const powerSlider = document.getElementById("power-slider");
+      const fireBtn = document.getElementById("fire-btn");
+      const ammoSelect = document.getElementById("ammo-select");
+
+      angleSlider.oninput = () => {
+        const t = STATE.teams[STATE.currentTurn];
+        t.angle = parseInt(angleSlider.value, 10);
+        document.getElementById("angle-val").innerText = `${t.angle}°`;
+      };
+      powerSlider.oninput = () => {
+        const t = STATE.teams[STATE.currentTurn];
+        t.power = parseInt(powerSlider.value, 10);
+        document.getElementById("power-val").innerText = `${t.power}`;
+      };
+
+      fireBtn.onclick = () => {
+        if (STATE.phase !== "AIMING") return;
+        fire();
+      };
+
+      ammoSelect.onchange = () => {
+        // no extra action needed; read on fire()
+      };
+    }
+
+    function updateHUD() {
+      for (const t of STATE.teams) {
+        document.getElementById(`hp-${t.id}`).innerText = t.hp;
+        document.getElementById(`pts-${t.id}`).innerText = t.pts;
+        const w = Math.max(0, (t.hp / MAX_HP) * 100);
+        document.getElementById(`hp-bar-${t.id}`).style.width = `${w}%`;
+      }
+      const cur = STATE.teams[STATE.currentTurn];
+      document.getElementById("moves-val").innerText = cur.moves;
+      document.getElementById("angle-slider").value = cur.angle;
+      document.getElementById("power-slider").value = cur.power;
+      document.getElementById("angle-val").innerText = `${cur.angle}°`;
+      document.getElementById("power-val").innerText = `${cur.power}`;
+
+      // Ammo select
+      const ammoSelect = document.getElementById("ammo-select");
+      ammoSelect.innerHTML = "";
+      const inv = cur.inventory || ["BASIC"];
+      inv.forEach(k => {
+        const opt = document.createElement("option");
+        opt.value = k;
+        opt.textContent = AMMO_TYPES[k]?.name || k;
+        ammoSelect.appendChild(opt);
+      });
+      if (!inv.includes("BASIC")) {
+        const opt = document.createElement("option");
+        opt.value = "BASIC";
+        opt.textContent = AMMO_TYPES.BASIC.name;
+        ammoSelect.appendChild(opt);
+      }
+    }
+
+    /***********************
+     *  QUESTION MODAL LOGIC
+     ***********************/
+    function showMCQModal() {
+      STATE.phase = 'QUESTION';
+      const team = STATE.teams[STATE.currentTurn];
+
+      if (bgmReady) BGM.volume = 0.20;
+
+      STATE.teams.forEach((t, i) => {
+        const hud = document.getElementById(`team-${i}-hud`);
+        if (i === STATE.currentTurn) {
+          hud.className = `flex flex-col items-center p-2 rounded-lg w-48 transition-all bg-slate-800/80 ring-2 shadow-[0_0_15px_${t.color}66] scale-105 transform z-10`;
+          hud.style.borderColor = t.color;
+          hud.style.color = '#fff';
+        } else {
+          hud.className = `flex flex-col items-center p-2 rounded-lg w-48 transition-all border border-transparent opacity-40 scale-95`;
+          hud.style.borderColor = 'transparent';
+          hud.style.color = t.color;
+        }
+      });
+
+      document.getElementById('turn-title').innerText = `CHỈ HUY ${team.name}!`;
+      document.getElementById('turn-title').style.color = team.color;
+
+      rebuildAvailableQuestions(); // ensure latest set applies
+      if (availableQuestions.length === 0) rebuildAvailableQuestions();
+
+      const qIndex = Math.floor(Math.random() * availableQuestions.length);
+      const qData = availableQuestions.splice(qIndex, 1)[0];
+
+      document.getElementById('mcq-question').innerText = qData.q;
+      document.getElementById('question-category').innerText = qData.category || "General";
+
+      const optsContainer = document.getElementById('mcq-options');
+      optsContainer.innerHTML = '';
+
+      qData.opts.forEach((optText, idx) => {
+        const btn = document.createElement('button');
+        btn.className = "bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-4 px-6 rounded-xl border border-slate-600 hover:border-sky-400 transition-all text-lg shadow-md hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]";
+        btn.innerText = optText;
+        btn.onclick = () => handleMCQAnswer(idx === qData.ans);
+        optsContainer.appendChild(btn);
+      });
+
+      document.getElementById('mcq-container').classList.remove('hidden');
+      document.getElementById('loot-result').classList.add('hidden');
+      document.getElementById('question-modal').classList.remove('hidden');
+      document.getElementById('controls').classList.add('opacity-50', 'pointer-events-none');
+    }
+
+    function handleMCQAnswer(isCorrect) {
+      document.getElementById('mcq-container').classList.add('hidden');
+      const lootRes = document.getElementById('loot-result');
+      const lootText = document.getElementById('loot-text');
+      const team = STATE.teams[STATE.currentTurn];
+
+      if (isCorrect) {
+        team.pts += 2;
+        team.streak = (team.streak || 0) + 1;
+        team.stats.correct++;
+        updateHUD();
+
+        const lootTypes = ['HEAVY', 'SNIPER', 'CLUSTER'];
+        const drop = lootTypes[Math.floor(Math.random() * lootTypes.length)];
+        if (!team.inventory.includes(drop)) team.inventory.push(drop);
+
+        let unlockedKM = false;
+        if (team.streak >= 3 && !team.inventory.includes('KNOWLEDGE')) {
+          team.inventory.push('KNOWLEDGE');
+          unlockedKM = true;
+        }
+
+        lootText.innerHTML = `
+          <span class="text-green-400">TRẢ LỜI CHÍNH XÁC!</span><br>
+          <span class="text-xl text-slate-300 mt-2 block">+2 Điểm. Mở khoá <span style="color:${AMMO_TYPES[drop].color}">${AMMO_TYPES[drop].name}</span>.</span>
+          <span class="text-lg text-slate-400 mt-3 block">Chuỗi đúng: <span class="text-white font-black">${team.streak}</span></span>
+          ${unlockedKM ? `<span class="text-xl mt-3 block" style="color:${AMMO_TYPES.KNOWLEDGE.color}; font-weight:900;">MỞ KHÓA: ${AMMO_TYPES.KNOWLEDGE.name} ⚡</span>` : ``}
+        `;
+      } else {
+        team.streak = 0;
+        team.stats.wrong++;
+        lootText.innerHTML = `<span class="text-red-500">SAI LẦM CHIẾN THUẬT.</span><br><span class="text-xl text-slate-400 mt-2 block">Chỉ được dùng đạn tiêu chuẩn. Cố gắng bảo vệ vị trí.</span><span class="text-lg text-slate-500 mt-3 block">Chuỗi đúng bị phá vỡ.</span>`;
+      }
+
+      lootRes.classList.remove('hidden');
+      updateHUD();
+    }
+
+    function startAiming() {
+      STATE.phase = 'AIMING';
+      if (bgmReady) BGM.volume = 0.35;
+
+      document.getElementById('question-modal').classList.add('hidden');
+      const controls = document.getElementById('controls');
+      controls.classList.remove('opacity-50', 'pointer-events-none');
+
+      // Reset moves each turn
+      const t = STATE.teams[STATE.currentTurn];
+      t.moves = 1;
+      updateHUD();
+    }
+
+    /***********************
+     *  MOVEMENT + FIRING
+     ***********************/
+    function moveTank(dir) {
+      const t = STATE.teams[STATE.currentTurn];
+      if (STATE.phase !== "AIMING") return;
+      if (t.moves <= 0) return;
+
+      t.x += dir * 22;
+      t.targetX = t.x;
+      t.moves -= 1;
+      updateTankY();
+      updateHUD();
+    }
+
+    function fire() {
+      const t = STATE.teams[STATE.currentTurn];
+      const ammoKey = document.getElementById("ammo-select").value || "BASIC";
+      const ammo = AMMO_TYPES[ammoKey] || AMMO_TYPES.BASIC;
+
+      const rad = (t.angle * Math.PI) / 180;
+      // same basic ballistic model
+      const speed = (t.power / 100) * 9.5 + 1.0;
+
+      const vx = Math.cos(rad) * speed;
+      const vy = -Math.sin(rad) * speed;
+
+      const p = {
+        x: t.x,
+        y: t.y - 14,
+        vx, vy,
+        ammoKey: ammo.id,
+        r: ammo.radius,
+        mass: ammo.mass,
+        life: 0,
+        owner: t.id,
+        guided: !!ammo.guided
+      };
+
+      STATE.projectiles.push(p);
+      t.stats.shots++;
+      STATE.phase = "PROJECTILE";
+      document.getElementById('controls').classList.add('opacity-50', 'pointer-events-none');
+      updateHUD();
+    }
+
+    /***********************
+     *  COLLISIONS + EXPLOSIONS
+     ***********************/
+    function explode(x, y, ammoKey, ownerId) {
+      const ammo = AMMO_TYPES[ammoKey] || AMMO_TYPES.BASIC;
+
+      // screen shake
+      STATE.shakeTime = 16;
+      STATE.shakeMag = Math.min(14, ammo.expRadius / 8);
+
+      // slow-mo on big final hit feel
+      if (ammo.expRadius >= 75) {
+        STATE.slowmoTimer = 20;
+        STATE.timeScale = 0.45;
+      }
+
+      // particles
+      for (let i=0;i<70;i++){
+        const ang = Math.random() * Math.PI*2;
+        const sp = 1 + Math.random()*4.5;
+        STATE.particles.push({
+          x, y,
+          vx: Math.cos(ang)*sp,
+          vy: Math.sin(ang)*sp,
+          life: 30 + Math.random()*25
+        });
+      }
+
+      // damage teams
+      STATE.teams.forEach(t => {
+        if (t.hp <= 0) return;
+        const dx = t.x - x;
+        const dy = (t.y - 10) - y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist <= ammo.expRadius) {
+          const factor = 1 - (dist / ammo.expRadius);
+          const dmg = Math.max(1, Math.round(ammo.damage * factor));
+          t.hp = Math.max(0, t.hp - dmg);
+          t.stats.damageTaken += dmg;
+
+          const owner = STATE.teams[ownerId];
+          if (owner) owner.stats.damageDealt += dmg;
+
+          if (t.hp === 0 && owner && t.id !== owner.id) {
+            owner.stats.kills += 1;
+          }
+        }
+      });
+
+      // cluster splitting
+      if (ammo.isCluster) {
+        for (let k=0;k<5;k++){
+          STATE.projectiles.push({
+            x, y,
+            vx: (Math.random()*2-1)*3.8,
+            vy: - (2 + Math.random()*3.5),
+            ammoKey: "BASIC",
+            r: 3,
+            mass: 0.5,
+            life: 0,
+            owner: ownerId,
+            guided: false
+          });
+        }
+      }
+
+      updateHUD();
+      checkGameOver();
+    }
+
+    function checkGameOver() {
+      const alive = STATE.teams.filter(t => t.hp > 0);
+      if (alive.length <= 1) {
+        const winner = alive[0] || STATE.teams.reduce((a,b)=> a.pts>b.pts ? a : b);
+        endGame(winner);
+      }
+    }
+
+    function endGame(winner) {
+      STATE.phase = "GAME_OVER";
+
+      // confetti
+      for (let i=0;i<220;i++){
+        STATE.confetti.push({
+          x: Math.random()*width,
+          y: -20 - Math.random()*height*0.2,
+          vx: (Math.random()*2-1)*1.2,
+          vy: 2 + Math.random()*3,
+          rot: Math.random()*Math.PI*2,
+          vr: (Math.random()*2-1)*0.12,
+          life: 240 + Math.random()*120
+        });
+      }
+
+      // XP update
+      const prog = loadProgress();
+      STATE.teams.forEach(t => {
+        const key = t.name;
+        const base = (t.stats.correct*20) + (t.stats.hits*15) + (t.stats.kills*60) + (t.pts*10);
+        prog[key] = (prog[key] || 0) + base;
+      });
+      saveProgress(prog);
+
+      // scoreboard
+      document.getElementById("winner-text").innerText = `🏆 ${winner.name} chiến thắng!`;
+      const sb = document.getElementById("scoreboard");
+      sb.innerHTML = "";
+      STATE.teams.forEach(t => {
+        sb.innerHTML += `
+          <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+            <div class="flex items-center justify-between gap-3">
+              <div class="font-black text-lg" style="color:${t.color}">${t.name}</div>
+              <div class="text-slate-300 font-bold">PTS: <span class="text-yellow-300">${t.pts}</span></div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm text-slate-300">
+              <div>✅ Correct: <span class="text-white font-bold">${t.stats.correct}</span></div>
+              <div>❌ Wrong: <span class="text-white font-bold">${t.stats.wrong}</span></div>
+              <div>🎯 Shots: <span class="text-white font-bold">${t.stats.shots}</span></div>
+              <div>💥 Kills: <span class="text-white font-bold">${t.stats.kills}</span></div>
+            </div>
+          </div>
+        `;
+      });
+
+      const pb = document.getElementById("progressboard");
+      pb.innerHTML = "";
+      STATE.teams.forEach(t => {
+        const xp = (prog[t.name] || 0);
+        pb.innerHTML += `
+          <div class="flex items-center justify-between bg-slate-900/40 border border-slate-700 rounded-xl p-3">
+            <div class="font-black" style="color:${t.color}">${t.name}</div>
+            <div class="text-slate-200 font-bold">${xp} XP • <span class="text-sky-300">${getRank(xp)}</span></div>
+          </div>
+        `;
+      });
+
+      // ending video if exists
+      const vid = document.getElementById("ending-video");
+      vid.classList.remove("hidden");
+      try { vid.currentTime = 0; vid.play().catch(()=>{}); } catch {}
+
+      document.getElementById("game-over-modal").classList.remove("hidden");
+    }
+
+    /***********************
+     *  GAME LOOP + DRAWING
+     ***********************/
+    function gameLoop(now) {
+      const dtRaw = Math.min(32, now - STATE.lastTime);
+      STATE.lastTime = now;
+      const dt = dtRaw * (STATE.timeScale || 1);
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+      // slow-mo timer
+      if (STATE.slowmoTimer > 0) {
+        STATE.slowmoTimer--;
+        if (STATE.slowmoTimer === 0) STATE.timeScale = 1;
+      }
+
+      // shake decay
+      if (STATE.shakeTime > 0) STATE.shakeTime--;
+
+      // projectiles
+      for (let i=STATE.projectiles.length-1; i>=0; i--) {
+        const p = STATE.projectiles[i];
+        const ammo = AMMO_TYPES[p.ammoKey] || AMMO_TYPES.BASIC;
+
+        // guided: gently steer toward nearest alive enemy
+        if (p.guided) {
+          const enemies = STATE.teams.filter(t => t.hp>0 && t.id !== p.owner);
+          if (enemies.length) {
+            let best = enemies[0], bestD = 1e9;
+            for (const e of enemies) {
+              const dx = e.x - p.x;
+              const dy = (e.y - 10) - p.y;
+              const d = dx*dx + dy*dy;
+              if (d < bestD) { bestD = d; best = e; }
+            }
+            const dx = best.x - p.x;
+            const dy = (best.y - 10) - p.y;
+            const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+            const steer = 0.02; // gentle
+            p.vx += (dx/mag) * steer;
+            p.vy += (dy/mag) * steer;
+          }
+        }
+
+        // gravity + wind
+        p.vy += STATE.gravity * (dt/16) * (ammo.mass || 1);
+        p.vx += STATE.wind * (dt/16);
+
+        p.x += p.vx * (dt/16) * 6;
+        p.y += p.vy * (dt/16) * 6;
+
+        p.life += 1;
+
+        // collision terrain
+        const tx = Math.floor(p.x);
+        if (tx >= 0 && tx < width) {
+          const groundY = STATE.terrain[tx];
+          if (p.y >= groundY - p.r) {
+            explode(p.x, groundY - 2, p.ammoKey, p.owner);
+            STATE.projectiles.splice(i,1);
+            afterShotCleanup(p.owner);
+            continue;
+          }
+        }
+
+        // collision out of bounds
+        if (p.x < -50 || p.x > width+50 || p.y > height+80) {
+          STATE.projectiles.splice(i,1);
+          afterShotCleanup(p.owner);
+          continue;
+        }
+
+        // collision with tanks
+        for (const t of STATE.teams) {
+          if (t.hp <= 0) continue;
+          const dx = t.x - p.x;
+          const dy = (t.y - 10) - p.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 18) {
+            explode(p.x, p.y, p.ammoKey, p.owner);
+            STATE.projectiles.splice(i,1);
+            const owner = STATE.teams[p.owner];
+            if (owner) owner.stats.hits++;
+            afterShotCleanup(p.owner);
+            break;
+          }
+        }
+      }
+
+      // particles
+      for (let i=STATE.particles.length-1; i>=0; i--) {
+        const pa = STATE.particles[i];
+        pa.vy += 0.08;
+        pa.x += pa.vx;
+        pa.y += pa.vy;
+        pa.life -= 1;
+        if (pa.life <= 0) STATE.particles.splice(i,1);
+      }
+
+      // confetti
+      for (let i=STATE.confetti.length-1; i>=0; i--) {
+        const c = STATE.confetti[i];
+        c.x += c.vx;
+        c.y += c.vy;
+        c.rot += c.vr;
+        c.vy += 0.01;
+        c.life -= 1;
+        if (c.life <= 0 || c.y > height+60) STATE.confetti.splice(i,1);
+      }
+    }
+
+    function afterShotCleanup(ownerId) {
+      // after projectile resolves, go next turn (unless game over)
+      if (STATE.phase === "GAME_OVER") return;
+      if (STATE.projectiles.length > 0) return;
+
+      updateWind();
+
+      // next alive team
+      let next = STATE.currentTurn;
+      for (let k=0;k<STATE.teams.length;k++){
+        next = (next + 1) % STATE.teams.length;
+        if (STATE.teams[next].hp > 0) break;
+      }
+      STATE.currentTurn = next;
+
+      updateHUD();
+      showMCQModal();
+    }
+
+    function render() {
+      // camera shake
+      let sx = 0, sy = 0;
+      if (STATE.shakeTime > 0) {
+        const m = STATE.shakeMag || 8;
+        sx = (Math.random()*2-1)*m;
+        sy = (Math.random()*2-1)*m;
+      }
+
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      drawBackground();
+      drawTerrain();
+
+      // tanks
+      for (const t of STATE.teams) {
+        if (t.hp <= 0) continue;
+        drawTank(t);
+      }
+
+      // projectiles
+      for (const p of STATE.projectiles) {
+        const ammo = AMMO_TYPES[p.ammoKey] || AMMO_TYPES.BASIC;
+        ctx.fillStyle = ammo.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, ammo.radius, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // particles
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      for (const pa of STATE.particles) {
+        ctx.fillRect(pa.x, pa.y, 2, 2);
+      }
+
+      // confetti
+      for (const c of STATE.confetti) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rot);
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "white";
+        ctx.fillRect(-3, -2, 6, 4);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawTank(t) {
+      // simple “countryball tank” style
+      const bodyY = t.y - 10;
+      // track
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(t.x - 18, bodyY + 10, 36, 8);
+
+      // ball body
+      ctx.beginPath();
+      ctx.fillStyle = t.color;
+      ctx.arc(t.x, bodyY, 16, 0, Math.PI*2);
+      ctx.fill();
+
+      // face highlight
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(t.x - 5, bodyY - 5, 10, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // cannon
+      const rad = (t.angle * Math.PI)/180;
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(t.x, bodyY);
+      ctx.lineTo(t.x + Math.cos(rad)*24, bodyY - Math.sin(rad)*24);
+      ctx.stroke();
+
+      // small label
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 10px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText(CHASSIS_TYPES[t.chassisKey]?.flag || "", t.x, bodyY + 4);
+    }
+
+    /***********************
+     *  BOOTSTRAP
+     ***********************/
+    function init() {
+      loadTeacherData();
+      syncSetDropdowns();
+      syncActiveSetLabels();
+      rebuildAvailableQuestions();
+
+      const sel = document.getElementById("active-set-select");
+      sel.onchange = () => setActiveSet(sel.value);
+      const sel2 = document.getElementById("active-set-select-setup");
+      sel2.onchange = () => setActiveSet(sel2.value);
+
+      pickTerrainTheme();
+      document.getElementById("terrain-theme-label").textContent = STATE.terrainTheme?.name || "Random";
+      document.getElementById("active-terrain-label").textContent = STATE.terrainTheme?.name || "Random";
+    }
+
+    init();
+  </script>
+</body>
+</html>
