@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Dashboard - Exam Portal</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #f4f4f5; padding: 2rem; margin: 0; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; height: 90vh; }
+        .panel { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        
+        input { width: 100%; padding: 10px; margin: 8px 0 15px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;}
+        button { padding: 12px 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; width: 100%; font-size: 16px;}
+        .btn-start { background: #22c55e; color: white; }
+        .btn-stop { background: #ef4444; color: white; }
+        
+        .monitor-header { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .roster-count { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #1f2937; color: white; }
+        
+        /* Status Colors */
+        .status-offline { color: #9ca3af; font-weight: bold; font-style: italic; }
+        .status-waiting { color: #f59e0b; font-weight: bold; }
+        .status-active { color: #22c55e; font-weight: bold; }
+        .status-warning { color: #ef4444; font-weight: bold; }
+        .status-terminated { color: #7f1d1d; font-weight: bold; background: #fca5a5;}
+        
+        iframe { flex-grow: 1; border: 1px solid #ddd; border-radius: 4px; width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="grid-layout">
+        <!-- Control Panel -->
+        <div class="panel" style="overflow-y: auto;">
+            <h2 style="margin-top: 0;">Control Center</h2>
+            
+            <label><strong>1. Google Form Embed URL:</strong></label>
+            <input type="text" id="formUrl" placeholder="https://docs.google.com/forms/d/e/.../viewform">
+            
+            <label><strong>2. Google Sheet Responses URL:</strong></label>
+            <input type="text" id="responseUrl" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
+            
+            <button id="toggleBtn" onclick="toggleExam()">Start Testing</button>
+            <div style="text-align: center; margin-top: 15px;">
+                <span id="statusText" style="font-weight: bold; color: #ef4444; font-size: 1.2em;">Status: OFFLINE</span>
+            </div>
+
+            <div class="monitor-header">
+                <h3 style="margin: 0;">Class Roster</h3>
+                <span id="rosterCount" class="roster-count">0 / 0 Joined</span>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Strikes</th><th>Status</th></tr>
+                </thead>
+                <tbody id="studentTable"></tbody>
+            </table>
+        </div>
+
+        <!-- Response Viewer -->
+        <div class="panel">
+            <h2 style="margin-top: 0;">Live Responses Viewer</h2>
+            <iframe id="responseFrame" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        let isExamActive = false;
+        let initialLoad = true; // Bug Fix: Prevents overwriting your links while you type
+
+        async function fetchDashboardData() {
+            const res = await fetch('/api/admin/data');
+            const data = await res.json();
+            
+            isExamActive = data.examActive;
+            
+            // Bug Fix: Only forcefully update text boxes on the first load, or if the exam is actively locked.
+            if (initialLoad || isExamActive) {
+                document.getElementById('formUrl').value = data.currentFormUrl;
+                document.getElementById('responseUrl').value = data.currentResponseUrl;
+                initialLoad = false;
+            }
+            
+            const frame = document.getElementById('responseFrame');
+            if (data.currentResponseUrl && frame.src !== data.currentResponseUrl) {
+                frame.src = data.currentResponseUrl;
+            }
+            
+            const btn = document.getElementById('toggleBtn');
+            const status = document.getElementById('statusText');
+            
+            if (isExamActive) {
+                btn.innerText = "Stop Testing";
+                btn.className = "btn-stop";
+                status.innerText = "Status: LIVE";
+                status.style.color = "#22c55e";
+                document.getElementById('formUrl').disabled = true;
+                document.getElementById('responseUrl').disabled = true;
+            } else {
+                btn.innerText = "Start Testing";
+                btn.className = "btn-start";
+                status.innerText = "Status: OFFLINE";
+                status.style.color = "#ef4444";
+                document.getElementById('formUrl').disabled = false;
+                document.getElementById('responseUrl').disabled = false;
+            }
+
+            // Render Roster Table
+            const tbody = document.getElementById('studentTable');
+            tbody.innerHTML = "";
+            let joinedCount = 0;
+
+            data.roster.forEach(username => {
+                const info = data.studentStats[username];
+                let displayStatus = 'NOT JOINED';
+                let strikes = '-';
+                let statusClass = 'status-offline';
+
+                if (info) {
+                    displayStatus = info.status.toUpperCase();
+                    strikes = `<strong>${info.strikes} / 5</strong>`;
+                    joinedCount++;
+                    
+                    if (displayStatus === 'WAITING') statusClass = 'status-waiting';
+                    else if (displayStatus === 'ACTIVE') statusClass = 'status-active';
+                    else if (displayStatus === 'WARNING') statusClass = 'status-warning';
+                    else if (displayStatus === 'TERMINATED') statusClass = 'status-terminated';
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${username}</td>
+                        <td>${strikes}</td>
+                        <td class="${statusClass}">${displayStatus}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('rosterCount').innerText = `${joinedCount} / ${data.roster.length} Joined`;
+        }
+
+        async function toggleExam() {
+            const form = document.getElementById('formUrl').value;
+            const sheet = document.getElementById('responseUrl').value;
+            
+            if (!isExamActive && !form) return alert("Please provide a Google Form URL.");
+
+            await fetch('/api/admin/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: !isExamActive, formUrl: form, responseUrl: sheet })
+            });
+            fetchDashboardData();
+        }
+
+        setInterval(fetchDashboardData, 2000);
+        fetchDashboardData();
+    </script>
+</body>
+</html>
