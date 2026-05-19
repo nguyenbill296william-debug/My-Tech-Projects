@@ -1,0 +1,9 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+Loop {
+    if WinExist("ahk_exe parsecd.exe") {
+        WinHide("ahk_exe parsecd.exe")
+    }
+    Sleep 2000
+}
